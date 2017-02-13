@@ -203,6 +203,10 @@ class TestGetAtomType(unittest.TestCase):
                                                      3 N u0 p0 c+1 {1,T} {4,S}
                                                      4 N u0 p3 c-2 {3,S}''')
 
+
+        self.mol24 = Molecule().fromAdjacencyList('''1 N u0 p2 c0 {2,S}
+                                                     2 H u0 p0 c0 {1,S}''')
+
     def atomType(self, mol, atomID):
         atom = mol.atoms[atomID]
         type = getAtomType(atom, mol.getBonds(atom))
@@ -233,21 +237,22 @@ class TestGetAtomType(unittest.TestCase):
         """
         Test that getAtomType() returns appropriate nitrogen atom types.
         """
-        self.assertEqual(self.atomType(self.mol5, 2), 'N5d')
+        self.assertEqual(self.atomType(self.mol23, 3), 'N1sc')
+        self.assertEqual(self.atomType(self.mol24, 0), 'N1s')
         self.assertEqual(self.atomType(self.mol5, 3), 'N1d')
+        self.assertEqual(self.atomType(self.mol22, 0), 'N2s')
         self.assertEqual(self.atomType(self.mol9, 0), 'N3s')
         self.assertEqual(self.atomType(self.mol10, 0), 'N3s')
         self.assertEqual(self.atomType(self.mol11, 0), 'N3s')
         self.assertEqual(self.atomType(self.mol16, 0), 'N3d')
         self.assertEqual(self.atomType(self.mol17, 0), 'N3d')
         self.assertEqual(self.atomType(self.mol12, 0), 'N3t')
+        self.assertEqual(self.atomType(self.mol18, 5), 'N3b')
         self.assertEqual(self.atomType(self.mol13, 0), 'N5s')
+        self.assertEqual(self.atomType(self.mol5, 2), 'N5d')
         self.assertEqual(self.atomType(self.mol14, 1), 'N5dd')
         self.assertEqual(self.atomType(self.mol15, 1), 'N5t')
-        self.assertEqual(self.atomType(self.mol18, 5), 'N3b')
         self.assertEqual(self.atomType(self.mol18, 0), 'N5b')
-        self.assertEqual(self.atomType(self.mol22, 0), 'N2s')
-        self.assertEqual(self.atomType(self.mol23, 3), 'N1sc')
         
     def testOxygenTypes(self):
         """
