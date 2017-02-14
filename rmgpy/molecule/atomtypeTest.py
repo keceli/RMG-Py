@@ -126,7 +126,7 @@ class TestGetAtomType(unittest.TestCase):
                                                     12 H u0 p0 {6,S}''')
         self.mol3 = Molecule().fromSMILES('[H]')
         self.mol4 = Molecule().fromSMILES(
-                                'O=[Si][Si][Si]=[Si]=[Si][Si]#[Si]SS=S')
+                                'O=[Si][Si][Si]=[Si]=[Si][Si]#[Si]')
         self.mol5 = Molecule().fromAdjacencyList('''1 H u0 p0 {3,S}
                                                     2 H u0 p0 {3,S}
                                                     3 N u0 p0 c+1 {1,S} {2,S} {4,D}
@@ -364,9 +364,6 @@ class TestGetAtomType(unittest.TestCase):
         self.assertEqual(self.atomType(self.mol32, 0), 'S6t')
         self.assertEqual(self.atomType(self.mol33, 0), 'S6td')
         self.assertEqual(self.atomType(self.mol34, 1), 'S6tt')
-        # Should be removed, perhaps mol4 should be changed:
-        #self.assertEqual(self.atomType(self.mol4, 8), 'Ss')
-        #self.assertEqual(self.atomType(self.mol4, 10), 'Sd')
     
     def testOtherTypes(self):
         """
