@@ -210,16 +210,16 @@ class TestGetAtomType(unittest.TestCase):
         self.mol24 = Molecule().fromAdjacencyList('''1 O u0 p3 c-1 {2,S}
                                                      2 S u0 p1 c+1 {1,S} {3,D}
                                                      3 O u0 p2 c0 {2,D}''')
-        
-        self.mol25 = Molecule().fromAdjacencyList('''1 S u0 p1 c0 {2,B} {5,B}
-                                                     2 C u0 p0 c0 {1,B} {3,B} {6,S}
-                                                     3 C u0 p0 c0 {2,B} {4,B} {7,S}
-                                                     4 C u0 p0 c0 {3,B} {5,B} {8,S}
-                                                     5 C u0 p0 c0 {1,B} {4,B} {9,S}
-                                                     6 H u0 p0 c0 {2,S}
-                                                     7 H u0 p0 c0 {3,S}
-                                                     8 H u0 p0 c0 {4,S}
-                                                     9 H u0 p0 c0 {5,S}''')
+ 
+#        self.mol25 = Molecule().fromAdjacencyList('''1 S u0 p1 c0 {2,B} {5,B}
+#                                                     2 C u0 p0 c0 {1,B} {3,B} {6,S}
+#                                                     3 C u0 p0 c0 {2,B} {4,B} {7,S}
+#                                                     4 C u0 p0 c0 {3,B} {5,B} {8,S}
+#                                                     5 C u0 p0 c0 {1,B} {4,B} {9,S}
+#                                                     6 H u0 p0 c0 {2,S}
+#                                                     7 H u0 p0 c0 {3,S}
+#                                                     8 H u0 p0 c0 {4,S}
+#                                                     9 H u0 p0 c0 {5,S}''')
         
         self.mol26 = Molecule().fromAdjacencyList('''1  O u0 p2 c0 {2,D}
                                                      2  S u0 p1 c0 {1,D} {3,D}
@@ -352,7 +352,7 @@ class TestGetAtomType(unittest.TestCase):
         self.assertEqual(self.atomType(self.mol23, 0), 'S4s')
         self.assertEqual(self.atomType(self.mol23, 2), 'S4d')
         self.assertEqual(self.atomType(self.mol24, 1), 'S4dc')
-        self.assertEqual(self.atomType(self.mol25, 0), 'S4b')
+#        self.assertEqual(self.atomType(self.mol25, 0), 'S4b')
         self.assertEqual(self.atomType(self.mol26, 1), 'S4dd')
         self.assertEqual(self.atomType(self.mol26, 4), 'S4t')
         self.assertEqual(self.atomType(self.mol26, 5), 'S6s')
