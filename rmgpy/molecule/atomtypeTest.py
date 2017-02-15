@@ -245,17 +245,17 @@ class TestGetAtomType(unittest.TestCase):
                                                      6 H u0 p0 c0 {1,S}''')
         
         self.mol29 = Molecule().fromAdjacencyList('''1 O u0 p3 c-1 {2,S}
-                                                     2 S u0 p0 c+2 {1,S} {3,S} {4,S}
+                                                     2 S u0 p0 c+2 {1,S} {3,S} {4,D}
                                                      3 O u0 p3 c-1 {2,S}
-                                                     4 O u0 p3 c-1 {2,S}''')
+                                                     4 O u0 p2 c0  {2,D}''')
         
         self.mol30 = Molecule().fromAdjacencyList('''1 O u0 p2 c0 {2,D}
                                                      2 S u0 p0 c0 {1,D} {3,D} {4,S} {5,S}
                                                      3 O u0 p2 c0 {2,D}
                                                      4 O u0 p2 c0 {2,S} {6,S}
                                                      5 O u0 p2 c0 {2,S} {7,S}
-                                                     5 H u0 p0 c0 {4,S}
-                                                     5 H u0 p0 c0 {5,S}''')
+                                                     6 H u0 p0 c0 {4,S}
+                                                     7 H u0 p0 c0 {5,S}''')
         
         self.mol31 = Molecule().fromAdjacencyList('''1 O u0 p2 c0 {2,D}
                                                      2 S u0 p0 c0 {1,D} {3,D} {4,D}
@@ -377,3 +377,4 @@ class TestGetAtomType(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(testRunner=unittest.TextTestRunner(verbosity=2))
+
