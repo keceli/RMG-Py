@@ -189,11 +189,14 @@ def generateResonanceStructures(mol, keepIsomorphic=False):
                                                       generateOppositeKekuleStructure], keepIsomorphic)
 
         # Check for isomorphism against the original molecule
-        for newMol in newMolList:
-            if mol.isIsomorphic(newMol):
+        for i, newMol in enumerate(newMolList):
+            if not keepIsomorphic and mol.isIsomorphic(newMol):
                 # There will be at most one isomorphic molecule, since the new molecules have
                 # already been checked against each other, so we can break after removing it
-                newMolList.remove(newMol)
+                del newMolList[i]
+                break
+            elif keepIsomorphic and mol.isIdentical(newMol):
+                del newMolList[i]
                 break
         # Add the newly generated structures to the original list
         # This is not optimal, but is a temporary measure to ensure compatability until other issues are fixed
