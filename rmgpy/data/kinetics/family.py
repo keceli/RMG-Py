@@ -51,7 +51,7 @@ from .depository import KineticsDepository
 from .groups import KineticsGroups
 from .rules import KineticsRules
 
-from rmgpy.rmg.react import findDegeneracies
+
 
 ################################################################################
 
@@ -1422,14 +1422,21 @@ class KineticsFamily(Database):
             
         return reactionList
     
-    def calculateDegeneracy(self, reaction):
+    def calculateDegeneracy(self, reaction, ignoreSameReactants=False):
         """
         For a `reaction`  with `Molecule` objects given in the direction in which
         the kinetics are defined, compute the reaction-path degeneracy.
+        
+        This method adjusts for double counting of identical reactants. This should only
+        be adjusted once per reaction. To not adjust for identical reactants, add
+        `ignoreSameReactants= True` to this method.
         """
-
+        reaction.degeneracy = 1
+        from rmgpy.rmg.react import findDegeneracies, reduceSameReactantDegeneracy
         reactions = self.__generateReactions(reaction.reactants, products=reaction.products, forward=True)
         findDegeneracies(reactions)
+        if not ignoreSameReactants:
+            reduceSameReactantDegeneracy(reactions)
         if len(reactions) != 1:
             for reactant in reaction.reactants:
                 logging.error("Reactant: {0!r}".format(reactant))
@@ -1452,7 +1459,8 @@ class KineticsFamily(Database):
         This method returns degenerate reactions, and `react.findDegeneracies`
         can be used to find the degenerate reactions.
         """
-
+        from rmgpy.rmg.react import findDegeneracies
+        
         rxnList = []; speciesList = []
 
         # Wrap each reactant in a list if not already done (this is done to 
@@ -1586,7 +1594,7 @@ class KineticsFamily(Database):
             reaction.pairs = self.getReactionPairs(reaction)
             reaction.template = self.getReactionTemplateLabels(reaction)
             if not forward:
-                reaction.degeneracy = self.calculateDegeneracy(reaction)
+                reaction.degeneracy = self.calculateDegeneracy(reaction, ignoreSameReactants = True)
 
             # Unlabel the atoms
             for label, atom in reaction.labeledAtoms:
