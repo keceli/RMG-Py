@@ -51,6 +51,8 @@ from .depository import KineticsDepository
 from .groups import KineticsGroups
 from .rules import KineticsRules
 
+from rmgpy.rmg.react import findDegeneracies
+
 ################################################################################
 
 class InvalidActionError(Exception):
@@ -1425,7 +1427,6 @@ class KineticsFamily(Database):
         For a `reaction`  with `Molecule` objects given in the direction in which
         the kinetics are defined, compute the reaction-path degeneracy.
         """
-        from rmgpy.rmg.react import findDegeneracies
 
         reactions = self.__generateReactions(reaction.reactants, products=reaction.products, forward=True)
         findDegeneracies(reactions)
@@ -1567,7 +1568,10 @@ class KineticsFamily(Database):
                     
                 if match: 
                     rxnList.append(reaction)
-                
+
+        # modify the rxnList in place to obtain degeneracies.
+        findDegeneracies(rxnList)
+
         # Determine the reactant-product pairs to use for flux analysis
         # Also store the reaction template (useful so we can easily get the kinetics later)
         for reaction in rxnList:
