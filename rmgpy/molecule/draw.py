@@ -855,6 +855,8 @@ class MoleculeDrawer:
             if symbols[i] == 'C' and len(symbols) > 2:
                 if len(atoms[i].bonds) > 1 or (atoms[i].radicalElectrons == 0 and atoms[i].charge == 0):
                     symbols[i] = ''
+                if not atoms[i].element.isotope== -1:
+                    symbols[i] = 'Ci'
         # Do label atoms that have only double bonds to one or more labeled atoms
         changed = True
         while changed:
