@@ -1432,11 +1432,27 @@ class KineticsFamily(Database):
         `ignoreSameReactants= True` to this method.
         """
         reaction.degeneracy = 1
-        from rmgpy.rmg.react import findDegeneracies, reduceSameReactantDegeneracy
-        reactions = self.__generateReactions(reaction.reactants, products=reaction.products, forward=True)
+        from rmgpy.rmg.react import findDegeneracies, reduceSameReactantDegeneracy, getMoleculeTuples
+
+        # find combinations of resonance isomers
+        specReactants = []
+        for mol in reaction.reactants:
+            spec = Species(molecule=[mol])
+            spec.generateResonanceIsomers(keepIsomorphic=True)
+            specReactants.append(spec)
+        molecule_combos = getMoleculeTuples(specReactants)
+
+        reactions = []
+        for combo in molecule_combos:
+            comboOnlyMols = [tup[0] for tup in combo]
+            reactions.extend(self.__generateReactions(comboOnlyMols, products=reaction.products, forward=True))
+
+        # remove degenerate reactions
         findDegeneracies(reactions)
         if not ignoreSameReactants:
             reduceSameReactantDegeneracy(reactions)
+
+        # log issues
         if len(reactions) != 1:
             for reactant in reaction.reactants:
                 logging.error("Reactant: {0!r}".format(reactant))
