@@ -1594,7 +1594,7 @@ class KineticsFamily(Database):
                     rxnList.append(reaction)
 
         # modify the rxnList in place to obtain degeneracies.
-        findDegeneracies(rxnList)
+        findDegeneracies(rxnList, useSpeciesReaction = False)
 
         # Determine the reactant-product pairs to use for flux analysis
         # Also store the reaction template (useful so we can easily get the kinetics later)
