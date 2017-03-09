@@ -9,6 +9,8 @@ cpdef list generateResonanceStructures(Molecule mol)
 
 cpdef list _generateResonanceStructures(list molList, list methodList, bint copy=?)
 
+cpdef list generateLonePairMultipleBondResonanceStructures(Molecule mol)
+
 cpdef list generateAdjacentResonanceStructures(Molecule mol)
 
 cpdef list generateLonePairRadicalResonanceStructures(Molecule mol)
