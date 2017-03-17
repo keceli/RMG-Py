@@ -516,4 +516,103 @@ class TestKineticsCommentsParsing(unittest.TestCase):
         # Source 3 comes from a pdep reaction        
         self.assertTrue('PDep' in sources[4])
         self.assertEqual(sources[4]['PDep'], 7)
+
+
+class TestKineticsCommon(unittest.TestCase):
+    
+        
+    database=RMGDatabase()
+    database.load(os.path.join(settings['test_data.directory'], 'testing_database'),
+                      kineticsFamilies=['Disproportionation'], 
+                      kineticsDepositories=[],
+                      thermoLibraries=['primaryThermoLibrary'],   # Use just the primary thermo library, which contains necessary small molecular thermo
+                      depository = False,
+                      reactionLibraries=[],
+                      testing = True,
+                      solvation = False,
+                      )
+
+    # Prepare the database by loading training reactions but not averaging the rate rules
+    for family in database.kinetics.families.values():
+        family.addKineticsRulesFromTrainingSet(thermoDatabase=database.thermo)    
+        family.fillKineticsRulesByAveragingUp(verbose=True)
+        
+    def setUp(self):
+        """
+        A function run before each unit test in this class.
+        """
+        
+        self.database = self.__class__.database
+    
+    def testfilterReactions(self):
+        """
+        tests that filter reactions doesn't lose any reactions
+        """
+        from rmgpy.chemkin import loadChemkinFile
+        from rmgpy.data.kinetics.common import saveEntry, filterReactions
+        import numpy as np
+        species, reactions = loadChemkinFile(os.path.join(settings['test_data.directory'], 'parsing_data','chem_annotated.inp'),
+                                             os.path.join(settings['test_data.directory'], 'parsing_data','species_dictionary.txt')
+                                                       )
+        
+        sources = []
+        for reaction in reactions:
+            sources.append(self.database.kinetics.extractSourceFromComments(reaction))
+        
+        reactants = []
+        products = []
+        for x in reactions:
+            reactants += x.reactants
+            products += x.products
+        
+        reactants = np.unique(np.array(reactants)).tolist()
+        products = np.unique(np.array(products)).tolist()
+        
+        out = []
+        for i in reactants:
+            out += filterReactions([i],[],reactions)
+        for j in products:
+            out += filterReactions([],[i],reactions)
+            
+        for i in out:
+            self.assertIn(i,reactions, 'filter reactions is removing some reaction/s regardless of reactant or product input')
+        
+        
+    def testSaveEntry(self):
+        """
+        tests that save entry can run
+        """
+        from rmgpy.chemkin import loadChemkinFile
+        from rmgpy.data.kinetics.common import saveEntry, filterReactions
+        import numpy as np
+        import os.path as path
+        import os
+        from rmgpy.data.base import Entry
+        
+        species, reactions = loadChemkinFile(os.path.join(settings['test_data.directory'], 'parsing_data','chem_annotated.inp'),
+                                             os.path.join(settings['test_data.directory'], 'parsing_data','species_dictionary.txt')
+                                                       )
+        
+        fname  = 'testfile.txt'
+        fid = open('testfile.txt','w')
+        
+        wd = os.getcwd()
+        wdir = wd+'/'+fname
+        
+        rxn = reactions[0]
+        entry = Entry(index=1,label=str(rxn),item=rxn,rank=0)
+        saveEntry(fid,entry)
+        
+        fid.close()
+        
+        os.remove(wdir)
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
