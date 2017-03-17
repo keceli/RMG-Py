@@ -518,16 +518,16 @@ class TestKineticsCommentsParsing(unittest.TestCase):
         self.assertEqual(sources[4]['PDep'], 7)
 
 
-class TestKineticsCommon(unittest.TestCase):
+class TestKinetics(unittest.TestCase):
+    from rmgpy.chemkin import loadChemkinFile
     
-        
     database=RMGDatabase()
     database.load(os.path.join(settings['test_data.directory'], 'testing_database'),
                       kineticsFamilies=['Disproportionation'], 
                       kineticsDepositories=[],
                       thermoLibraries=['primaryThermoLibrary'],   # Use just the primary thermo library, which contains necessary small molecular thermo
                       depository = False,
-                      reactionLibraries=[],
+                      reactionLibraries=['GRI-Mech3.0'],
                       testing = True,
                       solvation = False,
                       )
@@ -536,24 +536,25 @@ class TestKineticsCommon(unittest.TestCase):
     for family in database.kinetics.families.values():
         family.addKineticsRulesFromTrainingSet(thermoDatabase=database.thermo)    
         family.fillKineticsRulesByAveragingUp(verbose=True)
-        
+    
+    species, reactions = loadChemkinFile(os.path.join(settings['test_data.directory'], 'parsing_data','chem_annotated.inp'),
+                                             os.path.join(settings['test_data.directory'], 'parsing_data','species_dictionary.txt')
+                                                       )
     def setUp(self):
         """
         A function run before each unit test in this class.
         """
+        self.database = self.__class__.database      
         
-        self.database = self.__class__.database
-    
     def testfilterReactions(self):
         """
         tests that filter reactions doesn't lose any reactions
         """
-        from rmgpy.chemkin import loadChemkinFile
-        from rmgpy.data.kinetics.common import saveEntry, filterReactions
+        
+        from rmgpy.data.kinetics.common import filterReactions
         import numpy as np
-        species, reactions = loadChemkinFile(os.path.join(settings['test_data.directory'], 'parsing_data','chem_annotated.inp'),
-                                             os.path.join(settings['test_data.directory'], 'parsing_data','species_dictionary.txt')
-                                                       )
+        
+        reactions=self.reactions
         
         sources = []
         for reaction in reactions:
@@ -577,21 +578,15 @@ class TestKineticsCommon(unittest.TestCase):
         for i in out:
             self.assertIn(i,reactions, 'filter reactions is removing some reaction/s regardless of reactant or product input')
         
-        
     def testSaveEntry(self):
         """
         tests that save entry can run
         """
-        from rmgpy.chemkin import loadChemkinFile
-        from rmgpy.data.kinetics.common import saveEntry, filterReactions
-        import numpy as np
-        import os.path as path
+        from rmgpy.data.kinetics.common import saveEntry
         import os
         from rmgpy.data.base import Entry
         
-        species, reactions = loadChemkinFile(os.path.join(settings['test_data.directory'], 'parsing_data','chem_annotated.inp'),
-                                             os.path.join(settings['test_data.directory'], 'parsing_data','species_dictionary.txt')
-                                                       )
+        reactions=self.reactions
         
         fname  = 'testfile.txt'
         fid = open('testfile.txt','w')
@@ -600,14 +595,23 @@ class TestKineticsCommon(unittest.TestCase):
         wdir = wd+'/'+fname
         
         rxn = reactions[0]
-        entry = Entry(index=1,label=str(rxn),item=rxn,rank=0)
+        entry = Entry(index=1,label=str(rxn),item=rxn,shortDesc='sdes',longDesc='lsdes',data='stuff',rank=0)
         saveEntry(fid,entry)
         
         fid.close()
         
         os.remove(wdir)
         
-        
+    def testDuplicates(self):
+        """
+        tests that kinetics libraries load properly and that
+        the duplicate related routines run without error
+        """
+        lib = self.database.kinetics.libraries['GRI-Mech3.0']
+        out = lib.checkForDuplicates(True)
+        self.assertIsNone(out)
+        out = lib.convertDuplicatesToMulti()
+        self.assertIsNone(out)
         
         
         
