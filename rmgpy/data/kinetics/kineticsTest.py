@@ -31,15 +31,31 @@ class TestKineticsDatabase(unittest.TestCase):
 
 class TestReactionDegeneracy(unittest.TestCase):
 
-    # load database once for entire class
-    database = RMGDatabase()
-    database.load(path = settings['database.directory'],
-         kineticsFamilies=['R_Recombination', 'Disproportionation','R_Addition_MultipleBond'],
-         depository=True,
-         solvation=True,)
-    for family in database.kinetics.families.values():
-        family.addKineticsRulesFromTrainingSet(thermoDatabase=database.thermo)
-        family.fillKineticsRulesByAveragingUp(verbose=True)
+    @classmethod
+    def setUpClass(cls):
+        """A function that is run ONCE before all unit tests in this class."""
+        cls.database = RMGDatabase()
+        cls.database.load(
+            path=settings['database.directory'],
+            thermoLibraries=['primaryThermoLibrary'],
+            reactionLibraries=[],
+            kineticsFamilies=[
+                'R_Recombination',
+                'Disproportionation',
+                'R_Addition_MultipleBond',
+            ],
+            depository=False,
+            solvation=False,
+        )
+        for family in cls.database.kinetics.families.values():
+            family.addKineticsRulesFromTrainingSet(thermoDatabase=cls.database.thermo)
+            family.fillKineticsRulesByAveragingUp(verbose=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """A function that is run ONCE after all unit tests in this class."""
+        from rmgpy.data import rmg
+        rmg.database = None
 
     def test_degeneracy_for_methyl_methyl_recombination(self):
         """Test that the proper degeneracy is calculated for methyl + methyl recombination"""
@@ -391,29 +407,32 @@ class TestReactionDegeneracy(unittest.TestCase):
         
 class TestKineticsCommentsParsing(unittest.TestCase):
 
-    database=RMGDatabase()
-    database.load(os.path.join(settings['test_data.directory'], 'testing_database'),
-                      kineticsFamilies=['Disproportionation'], 
-                      kineticsDepositories=[],
-                      thermoLibraries=['primaryThermoLibrary'],   # Use just the primary thermo library, which contains necessary small molecular thermo
-                      depository = False,
-                      reactionLibraries=[],
-                      testing = True,
-                      solvation = False,
-                      )
+    @classmethod
+    def setUpClass(cls):
+        """A function that is run ONCE before all unit tests in this class."""
+        cls.database = RMGDatabase()
+        cls.database.load(
+            path=os.path.join(settings['test_data.directory'], 'testing_database'),
+            kineticsFamilies=['Disproportionation'],
+            kineticsDepositories=[],
+            thermoLibraries=['primaryThermoLibrary'],   # Use just the primary thermo library, which contains necessary small molecular thermo
+            depository = False,
+            reactionLibraries=[],
+            testing = True,
+            solvation = False,
+        )
 
-    # Prepare the database by loading training reactions but not averaging the rate rules
-    for family in database.kinetics.families.values():
-        family.addKineticsRulesFromTrainingSet(thermoDatabase=database.thermo)    
-        family.fillKineticsRulesByAveragingUp(verbose=True)
-        
-    def setUp(self):
-        """
-        A function run before each unit test in this class.
-        """
-        
-        self.database = self.__class__.database
-        
+        # Prepare the database by loading training reactions but not averaging the rate rules
+        for family in cls.database.kinetics.families.values():
+            family.addKineticsRulesFromTrainingSet(thermoDatabase=cls.database.thermo)
+            family.fillKineticsRulesByAveragingUp(verbose=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """A function that is run ONCE after all unit tests in this class."""
+        from rmgpy.data import rmg
+        rmg.database = None
+
     def testParseKinetics(self):
         from rmgpy.chemkin import loadChemkinFile
         import rmgpy
