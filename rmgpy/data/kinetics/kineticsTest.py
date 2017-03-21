@@ -519,10 +519,15 @@ class TestKineticsCommentsParsing(unittest.TestCase):
 
 
 class TestKinetics(unittest.TestCase):
-    from rmgpy.chemkin import loadChemkinFile
     
-    database=RMGDatabase()
-    database.load(os.path.join(settings['test_data.directory'], 'testing_database'),
+    @classmethod
+    def setUpClass(cls):
+        from rmgpy.chemkin import loadChemkinFile
+        """
+        A function run before each unit test in this class.
+        """
+        cls.database = RMGDatabase() 
+        cls.database.load(os.path.join(settings['test_data.directory'], 'testing_database'),
                       kineticsFamilies=['Disproportionation'], 
                       kineticsDepositories=[],
                       thermoLibraries=['primaryThermoLibrary'],   # Use just the primary thermo library, which contains necessary small molecular thermo
@@ -531,20 +536,18 @@ class TestKinetics(unittest.TestCase):
                       testing = True,
                       solvation = False,
                       )
-
-    # Prepare the database by loading training reactions but not averaging the rate rules
-    for family in database.kinetics.families.values():
-        family.addKineticsRulesFromTrainingSet(thermoDatabase=database.thermo)    
-        family.fillKineticsRulesByAveragingUp(verbose=True)
+        for family in cls.database.kinetics.families.values():
+            family.addKineticsRulesFromTrainingSet(thermoDatabase=cls.database.thermo)    
+            family.fillKineticsRulesByAveragingUp(verbose=True)
     
-    species, reactions = loadChemkinFile(os.path.join(settings['test_data.directory'], 'parsing_data','chem_annotated.inp'),
+        cls.species, cls.reactions = loadChemkinFile(os.path.join(settings['test_data.directory'], 'parsing_data','chem_annotated.inp'),
                                              os.path.join(settings['test_data.directory'], 'parsing_data','species_dictionary.txt')
-                                                       )
-    def setUp(self):
-        """
-        A function run before each unit test in this class.
-        """
-        self.database = self.__class__.database      
+                                                    )
+    
+    @classmethod
+    def tearDownClass(cls):
+        from rmgpy.data import rmg
+        rmg.database = None
         
     def testfilterReactions(self):
         """
