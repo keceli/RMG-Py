@@ -66,17 +66,19 @@ from rmgpy.qm.main import QMDatabaseWriter
 from rmgpy.stats import ExecutionStatsWriter
 from rmgpy.thermo.thermoengine import submit
 from rmgpy.tools.sensitivity import plotSensitivity
-from cantera import ck2cti
-
+try:
+    from cantera import ck2cti
+except ImportError:
+    pass
 ################################################################################
 
 solvent = None
 
 class RMG(util.Subject):
     """
-    A representation of a Reaction Mechanism Generator (RMG) job. The 
+    A representation of a Reaction Mechanism Generator (RMG) job. The
     attributes are:
-    
+
     =================================== ================================================
     Attribute                           Description
     =================================== ================================================
@@ -132,15 +134,15 @@ class RMG(util.Subject):
     `initializationTime`                The time at which the job was initiated, in seconds since the epoch (i.e. from time.time())
     `done`                              Whether the job has completed (there is nothing new to add)
     =================================== ================================================
-    
+
     """
-    
+
     def __init__(self, inputFile=None, outputDirectory=None):
         super(RMG, self).__init__()
         self.inputFile = inputFile
         self.outputDirectory = outputDirectory
         self.clear()
-    
+
     def clear(self):
         """
         Clear all loaded information about the job (except the file paths).
@@ -156,11 +158,11 @@ class RMG(util.Subject):
         self.kineticsEstimator = 'group additivity'
         self.solvent = None
         self.diffusionLimiter = None
-        
+
         self.reactionModel = None
         self.reactionSystems = None
         self.database = None
-        
+
         self.fluxToleranceKeepInEdge = 0.0
         self.fluxToleranceMoveToCore = 1.0
         self.fluxToleranceInterrupt = 1.0
@@ -177,7 +179,7 @@ class RMG(util.Subject):
         self.unimolecularThreshold = None
         self.bimolecularThreshold = None
         self.termination = []
-        
+
         self.done = False
         self.verbosity = logging.INFO
         self.loadRestart = None
@@ -197,7 +199,7 @@ class RMG(util.Subject):
         self.kineticsdatastore = None
 
         self.execTime = []
-    
+
     def loadInput(self, path=None):
         """
         Load an RMG job from the input file located at `inputFile`, or
@@ -217,10 +219,10 @@ class RMG(util.Subject):
 
         self.reactionModel.verboseComments = self.verboseComments
         self.reactionModel.saveEdgeSpecies = self.saveEdgeSpecies
-        
+
         if self.quantumMechanics:
             self.reactionModel.quantumMechanics = self.quantumMechanics
-            
+
     def loadThermoInput(self, path=None):
         """
         Load an Thermo Estimation job from a thermo input file located at `inputFile`, or
@@ -231,10 +233,10 @@ class RMG(util.Subject):
         if not self.outputDirectory:
             self.outputDirectory = os.path.dirname(path)
         readThermoInputFile(path, self)
-        
+
         if self.quantumMechanics:
             self.reactionModel.quantumMechanics = self.quantumMechanics
-        
+
     def checkInput(self):
         """
         Check for a few common mistakes in the input file.
@@ -262,7 +264,7 @@ class RMG(util.Subject):
                 if self.database.thermo.libraries[libIter].solvent:
                     if not self.solvent ==  self.database.thermo.libraries[libIter].solvent:
                         raise DatabaseError('''Thermo library "{2}" was obtained in "{1}" and cannot be used with this liquid phase simulation in "{0}"
-                        '''.format(self.solvent, self.database.thermo.libraries[libIter].solvent, self.database.thermo.libraries[libIter].name))   
+                        '''.format(self.solvent, self.database.thermo.libraries[libIter].solvent, self.database.thermo.libraries[libIter].name))
             #Check kinetic librairies
             for libIter in self.database.kinetics.libraries.iterkeys():
                 if self.database.kinetics.libraries[libIter].solvent:
@@ -275,13 +277,13 @@ class RMG(util.Subject):
             for libIter in self.database.thermo.libraries.iterkeys():
                 if self.database.thermo.libraries[libIter].solvent:
                     raise DatabaseError('''Thermo library "{1}" was obtained in "{0}" solvent and cannot be used in gas phase simulation
-                    '''.format(self.database.thermo.libraries[libIter].solvent, self.database.thermo.libraries[libIter].name))   
+                    '''.format(self.database.thermo.libraries[libIter].solvent, self.database.thermo.libraries[libIter].name))
             #Check kinetic librairies
             for libIter in self.database.kinetics.libraries.iterkeys():
                 if self.database.kinetics.libraries[libIter].solvent:
                     raise DatabaseError('''Kinetics library "{1}" was obtained in "{0}" solvent and cannot be used in gas phase simulation
                     '''.format(self.database.kinetics.libraries[libIter].solvent, self.database.kinetics.libraries[libIter].name))
-    
+
     def saveInput(self, path=None):
         """
         Save an RMG job to the input file located at `path`, or
@@ -290,9 +292,9 @@ class RMG(util.Subject):
         from input import saveInputFile
         if path is None: path = self.outputFile
         saveInputFile(path, self)
-        
+
     def loadDatabase(self):
-        
+
         self.database = RMGDatabase()
         self.database.load(
             path = self.databaseDirectory,
@@ -305,15 +307,15 @@ class RMG(util.Subject):
             #frequenciesLibraries = self.statmechLibraries,
             depository = False, # Don't bother loading the depository information, as we don't use it
         )
-        
+
         #check libraries
         self.checkLibraries()
-        
+
         #set global variable solvent
         if self.solvent:
             global solvent
             solvent=self.solvent
-        
+
         if self.kineticsEstimator == 'rate rules':
             if '!training' not in self.kineticsDepositories:
                 logging.info('Adding rate rules from training set in kinetics families...')
@@ -341,22 +343,22 @@ class RMG(util.Subject):
             logging.info('Filling in rate rules in kinetics families by averaging...')
             for family in self.database.kinetics.families.values():
                 family.fillKineticsRulesByAveragingUp(verbose=self.verboseComments)
-    
+
     def initialize(self, **kwargs):
         """
         Initialize an RMG job using the command-line arguments `args` as returned
         by the :mod:`argparse` package.
         """
-    
+
         # Save initialization time
         self.initializationTime = time.time()
-    
+
         # Log start timestamp
         logging.info('RMG execution initiated at ' + time.asctime() + '\n')
-    
+
         # Print out RMG header
         self.logHeader()
-        
+
         try:
             restart = kwargs['restart']
         except KeyError:
@@ -366,20 +368,20 @@ class RMG(util.Subject):
             if not os.path.exists(os.path.join(self.outputDirectory,'restart.pkl')):
                 logging.error("Could not find restart file (restart.pkl). Please run without --restart option.")
                 raise Exception("No restart file")
-            
+
         # Read input file
         self.loadInput(self.inputFile)
 
-        # Check input file 
+        # Check input file
         self.checkInput()
-    
+
         # See if memory profiling package is available
         try:
             import psutil
         except ImportError:
             logging.info('Optional package dependency "psutil" not found; memory profiling information will not be saved.')
-    
-        
+
+
         # Make output subdirectories
         util.makeOutputSubdirectory(self.outputDirectory, 'pdep')
         util.makeOutputSubdirectory(self.outputDirectory, 'solver')
@@ -393,7 +395,7 @@ class RMG(util.Subject):
 
         # Load databases
         self.loadDatabase()
-        
+
         # Do all liquid-phase startup things:
         if self.solvent:
             Species.solventData = self.database.solvation.getSolventData(self.solvent)
@@ -411,7 +413,7 @@ class RMG(util.Subject):
         if restart:
             self.initializeRestartRun(os.path.join(self.outputDirectory,'restart.pkl'))
         else:
-    
+
             # Seed mechanisms: add species and reactions from seed mechanism
             # DON'T generate any more reactions for the seed species at this time
             for seedMechanism in self.seedMechanisms:
@@ -421,14 +423,14 @@ class RMG(util.Subject):
             # that RMG can find them if their rates are large enough
             for library, option in self.reactionLibraries:
                 self.reactionModel.addReactionLibraryToEdge(library)
-                
+
             # Also always add in a few bath gases (since RMG-Java does)
             for label, smiles in [('Ar','[Ar]'), ('He','[He]'), ('Ne','[Ne]'), ('N2','N#N')]:
                 molecule = Molecule().fromSMILES(smiles)
                 spec, isNew = self.reactionModel.makeNewSpecies(molecule, label=label, reactive=False)
                 if isNew:
                     self.initialSpecies.append(spec)
-            
+
             # Perform species constraints and forbidden species checks on input species
             for spec in self.initialSpecies:
                 if self.database.forbiddenStructures.isMoleculeForbidden(spec.molecule[0]):
@@ -458,7 +460,7 @@ class RMG(util.Subject):
                 allInputtedSpecies.extend(self.reactionModel.core.species)
                 #Because no iterations have taken place, the only things in the edge are from reaction libraries
                 allInputtedSpecies.extend(self.reactionModel.edge.species)
-                
+
                 O2Singlet=Molecule().fromSMILES('O=O')
                 for spec in allInputtedSpecies:
                     if spec.isIsomorphic(O2Singlet):
@@ -469,32 +471,32 @@ class RMG(util.Subject):
 
             for spec in self.initialSpecies:
                 submit(spec)
-                
+
             # Add nonreactive species (e.g. bath gases) to core first
-            # This is necessary so that the PDep algorithm can identify the bath gas            
+            # This is necessary so that the PDep algorithm can identify the bath gas
             for spec in self.initialSpecies:
                 if not spec.reactive:
                     self.reactionModel.enlarge(spec)
             for spec in self.initialSpecies:
                 if spec.reactive:
                     self.reactionModel.enlarge(spec)
-            
+
             #chatelak: store constant SPC indices in the reactor attributes if any constant SPC provided in the input file
             #advantages to write it here: this is run only once (as species indexes does not change over the generation)
             if self.solvent is not None:
                 for index, reactionSystem in enumerate(self.reactionSystems):
                     if reactionSystem.constSPCNames is not None: #if no constant species provided do nothing
-                        reactionSystem.get_constSPCIndices(self.reactionModel.core.species)  ##call the function to identify indices in the solver         
-                                  
+                        reactionSystem.get_constSPCIndices(self.reactionModel.core.species)  ##call the function to identify indices in the solver
+
             self.initializeReactionThresholdAndReactFlags()
 
 
         self.reactionModel.initializeIndexSpeciesDict()
-            
+
 
     def register_listeners(self):
         """
-        Attaches listener classes depending on the options 
+        Attaches listener classes depending on the options
         found in the RMG input file.
         """
 
@@ -504,10 +506,10 @@ class RMG(util.Subject):
             self.attach(OutputHTMLWriter(self.outputDirectory))
 
         if self.saveRestartPeriod:
-            self.attach(RestartWriter()) 
+            self.attach(RestartWriter())
 
         if self.quantumMechanics:
-            self.attach(QMDatabaseWriter()) 
+            self.attach(QMDatabaseWriter())
 
         self.attach(ExecutionStatsWriter(self.outputDirectory))
 
@@ -515,24 +517,24 @@ class RMG(util.Subject):
 
             for index, reactionSystem in enumerate(self.reactionSystems):
                 reactionSystem.attach(SimulationProfileWriter(
-                    self.outputDirectory, index, self.reactionModel.core.species))   
+                    self.outputDirectory, index, self.reactionModel.core.species))
                 reactionSystem.attach(SimulationProfilePlotter(
-                    self.outputDirectory, index, self.reactionModel.core.species))  
-        
+                    self.outputDirectory, index, self.reactionModel.core.species))
+
 
     def execute(self, **kwargs):
         """
         Execute an RMG job using the command-line arguments `args` as returned
         by the :mod:`argparse` package.
         """
-    
+
         self.initialize(**kwargs)
 
         # register listeners
         self.register_listeners()
 
         self.done = False
-        
+
         # Initiate first reaction discovery step after adding all core species
         if self.filterReactions:
             # Run the reaction system to update threshold and react flags
@@ -548,32 +550,32 @@ class RMG(util.Subject):
                     filterReactions=True,
                 )
                 self.updateReactionThresholdAndReactFlags(
-                    rxnSysUnimolecularThreshold=reactionSystem.unimolecularThreshold, 
+                    rxnSysUnimolecularThreshold=reactionSystem.unimolecularThreshold,
                     rxnSysBimolecularThreshold=reactionSystem.bimolecularThreshold)
 
-        self.reactionModel.enlarge(reactEdge=True, 
-            unimolecularReact=self.unimolecularReact, 
+        self.reactionModel.enlarge(reactEdge=True,
+            unimolecularReact=self.unimolecularReact,
             bimolecularReact=self.bimolecularReact)
 
         logging.info('Completed initial enlarge edge step...')
         self.saveEverything()
-        
+
         # Main RMG loop
         while not self.done:
-                
+
             self.done = True
             objectsToEnlarge = []
             allTerminated = True
             numCoreSpecies = len(self.reactionModel.core.species)
             for index, reactionSystem in enumerate(self.reactionSystems):
-                
+
                 # Conduct simulation
                 logging.info('Conducting simulation of reaction system %s...' % (index+1))
                 prune = True
                 if numCoreSpecies < self.minCoreSizeForPrune:
                     # Turn pruning off if we haven't reached minimum core size.
                     prune = False
-                    
+
                 try: terminated, obj = reactionSystem.simulate(
                     coreSpecies = self.reactionModel.core.species,
                     coreReactions = self.reactionModel.core.reactions,
@@ -597,7 +599,7 @@ class RMG(util.Subject):
                     raise
                 allTerminated = allTerminated and terminated
                 logging.info('')
-                
+
                 # If simulation is invalid, note which species should be added to
                 # the core
                 if obj:
@@ -608,10 +610,10 @@ class RMG(util.Subject):
                         obj = (obj, obj.getMaximumLeakSpecies(reactionSystem.T.value_si, reactionSystem.P.value_si))
                     objectsToEnlarge.append(obj)
                     self.done = False
-    
-    
+
+
             if not self.done: # There is something that needs exploring/enlarging
-                
+
                 # If we reached our termination conditions, then try to prune
                 # species from the edge
                 if allTerminated:
@@ -619,7 +621,7 @@ class RMG(util.Subject):
                     # Perform garbage collection after pruning
                     collected = gc.collect()
                     logging.info('Garbage collector: collected %d objects.' % (collected))
-    
+
                 # Enlarge objects identified by the simulation for enlarging
                 # These should be Species or Network objects
                 logging.info('')
@@ -627,11 +629,11 @@ class RMG(util.Subject):
 
                 if len(objectsToEnlarge) == 0:
                     raise Exception("Expected a species or pdep object to enlarge, but there wasn't one found.")
-                
+
                 # Add objects to enlarge to the core first
                 for objectToEnlarge in objectsToEnlarge:
                     self.reactionModel.enlarge(objectToEnlarge)
-                
+
                 if len(self.reactionModel.core.species) > numCoreSpecies:
                     # If there were core species added, then react the edge
                     # If there were no new core species, it means the pdep network needs be updated through another enlarge core step
@@ -655,13 +657,13 @@ class RMG(util.Subject):
                             self.updateReactionThresholdAndReactFlags(
                                 rxnSysUnimolecularThreshold = reactionSystem.unimolecularThreshold,
                                 rxnSysBimolecularThreshold = reactionSystem.bimolecularThreshold)
-    
-                        logging.info('')    
+
+                        logging.info('')
                     else:
                         self.updateReactionThresholdAndReactFlags()
-                    
-                    self.reactionModel.enlarge(reactEdge=True, 
-                            unimolecularReact=self.unimolecularReact, 
+
+                    self.reactionModel.enlarge(reactEdge=True,
+                            unimolecularReact=self.unimolecularReact,
                             bimolecularReact=self.bimolecularReact)
 
             self.saveEverything()
@@ -681,19 +683,19 @@ class RMG(util.Subject):
                     logging.info('The current model core has %s species and %s reactions' % (coreSpec, coreReac))
                     logging.info('The current model edge has %s species and %s reactions' % (edgeSpec, edgeReac))
                     return
-        
-        
+
+
         # Run sensitivity analysis post-model generation if sensitivity analysis is on
         for index, reactionSystem in enumerate(self.reactionSystems):
-            
+
             if reactionSystem.sensitiveSpecies:
                 logging.info('Conducting sensitivity analysis of reaction system %s...' % (index+1))
-                    
+
                 sensWorksheet = []
                 for spec in reactionSystem.sensitiveSpecies:
                     csvfilePath = os.path.join(self.outputDirectory, 'solver', 'sensitivity_{0}_SPC_{1}.csv'.format(index+1, spec.index))
                     sensWorksheet.append(csvfilePath)
-                    
+
                 terminated, obj = reactionSystem.simulate(
                     coreSpecies = self.reactionModel.core.species,
                     coreReactions = self.reactionModel.core.reactions,
@@ -710,16 +712,19 @@ class RMG(util.Subject):
                     sensitivityRelativeTolerance = self.sensitivityRelativeTolerance,
                     sensWorksheet = sensWorksheet,
                 )
-                
+
                 plotSensitivity(self.outputDirectory, index, reactionSystem.sensitiveSpecies)
 
         # generate Cantera files chem.cti & chem_annotated.cti in a designated `cantera` output folder
-        try:
-            self.generateCanteraFiles(os.path.join(self.outputDirectory, 'chemkin', 'chem.inp'))
-            self.generateCanteraFiles(os.path.join(self.outputDirectory, 'chemkin', 'chem_annotated.inp'))
-        except EnvironmentError:
-            logging.error('Could not generate Cantera files due to EnvironmentError. Check read\write privileges in output directory.')
-                
+        if ck2cti:
+            try:
+                self.generateCanteraFiles(os.path.join(self.outputDirectory, 'chemkin', 'chem.inp'))
+                self.generateCanteraFiles(os.path.join(self.outputDirectory, 'chemkin', 'chem_annotated.inp'))
+            except EnvironmentError:
+                logging.error('Could not generate Cantera files due to EnvironmentError. Check read\write privileges in output directory.')
+        else:
+            logging.info('Could not import Cantera, Cantera files will not be generated')
+
         # Write output file
         logging.info('')
         logging.info('MODEL GENERATION COMPLETED')
@@ -727,7 +732,7 @@ class RMG(util.Subject):
         coreSpec, coreReac, edgeSpec, edgeReac = self.reactionModel.getModelSize()
         logging.info('The final model core has %s species and %s reactions' % (coreSpec, coreReac))
         logging.info('The final model edge has %s species and %s reactions' % (edgeSpec, edgeReac))
-        
+
         self.finish()
 
     def generateCanteraFiles(self, chemkinFile, **kwargs):
@@ -766,14 +771,14 @@ class RMG(util.Subject):
         numCoreSpecies = len(self.reactionModel.core.species)
         prevNumCoreSpecies = len(self.unimolecularReact)
         stale = True if numCoreSpecies > prevNumCoreSpecies else False
-        
-        
+
+
         if self.filterReactions:
             if stale:
                 # Reset and expand the react arrays if there were new core species added
                 self.unimolecularReact = numpy.zeros((numCoreSpecies), bool)
                 self.bimolecularReact = numpy.zeros((numCoreSpecies, numCoreSpecies), bool)
-                
+
                 # Expand the threshold arrays if there were new core species added
                 unimolecularThreshold = numpy.zeros((numCoreSpecies), bool)
                 bimolecularThreshold = numpy.zeros((numCoreSpecies, numCoreSpecies), bool)
@@ -788,7 +793,7 @@ class RMG(util.Subject):
                     # We've shifted from not reacting to reacting
                     self.unimolecularReact[i] = True
                     self.unimolecularThreshold[i] = True
-                        
+
             for i in xrange(numCoreSpecies):
                 for j in xrange(i, numCoreSpecies):
                     if not self.bimolecularThreshold[i,j] and rxnSysBimolecularThreshold[i,j]:
@@ -801,27 +806,27 @@ class RMG(util.Subject):
                 # Reset and expand the react arrays if there were new core species added
                 self.unimolecularReact = numpy.zeros((numCoreSpecies), bool)
                 self.bimolecularReact = numpy.zeros((numCoreSpecies, numCoreSpecies), bool)
-                
+
                 # React all the new core species unimolecularly
                 for i in xrange(prevNumCoreSpecies, numCoreSpecies):
                     self.unimolecularReact[i] = True
-                
+
                 # React all the new core species with all the core species bimolecularly
                 for i in xrange(numCoreSpecies):
                     for j in xrange(prevNumCoreSpecies,numCoreSpecies):
                         self.bimolecularReact[i,j] = True
 
-        
+
     def saveEverything(self):
         """
         Saves the output HTML, the Chemkin file, and the Restart file (if appropriate).
-        
+
         The restart file is only saved if self.saveRestartPeriod or self.done.
         """
         # If the user specifies it, add unused reaction library reactions to
         # an additional output species and reaction list which is written to the ouput HTML
         # file as well as the chemkin file
-        
+
         if self.reactionLibraries:
             # First initialize the outputReactionList and outputSpeciesList to empty
             self.reactionModel.outputSpeciesList = []
@@ -829,12 +834,12 @@ class RMG(util.Subject):
             for library, option in self.reactionLibraries:
                 if option:
                     self.reactionModel.addReactionLibraryToOutput(library)
-        
+
         self.execTime.append(time.time() - self.initializationTime)
 
         # Notify registered listeners:
         self.notify()
-            
+
     def finish(self):
         """
         Complete the model generation.
@@ -842,7 +847,7 @@ class RMG(util.Subject):
         # Log end timestamp
         logging.info('')
         logging.info('RMG execution terminated at ' + time.asctime())
-    
+
     def getGitCommit(self, modulePath):
         import subprocess
         if os.path.exists(os.path.join(modulePath,'..','.git')):
@@ -854,7 +859,7 @@ class RMG(util.Subject):
                 return '', ''
         else:
             return '', ''
-    
+
     def logHeader(self, level=logging.INFO):
         """
         Output a header containing identifying information about RMG to the log.
@@ -868,7 +873,7 @@ class RMG(util.Subject):
         logging.log(level, '#          Richard H. West (r.west@neu.edu)             #')
         logging.log(level, '# Website: http://reactionmechanismgenerator.github.io/ #')
         logging.log(level, '#########################################################\n')
-    
+
         # Extract git commit from RMG-Py
         head, date = self.getGitCommit(getPath())
         if head != '' and date != '':
@@ -883,7 +888,7 @@ class RMG(util.Subject):
                 logging.log(level, 'The current anaconda package for RMG-Py is:')
                 logging.log(level, condaPackage)
                 logging.log(level,'')
-                
+
         databaseHead, databaseDate = self.getGitCommit(settings['database.directory'])
         if databaseHead !='' and databaseDate !='':
             logging.log(level, 'The current git HEAD for RMG-database is:')
@@ -906,14 +911,14 @@ class RMG(util.Subject):
 
         # A few things still point to the species in the input file, so update
         # those to point to the equivalent species loaded from the restart file
-    
+
         # The termination conversions still point to the old species
         from rmgpy.solver.base import TerminationConversion
         for reactionSystem in self.reactionSystems:
             for term in reactionSystem.termination:
                 if isinstance(term, TerminationConversion):
                     term.species, isNew = self.reactionModel.makeNewSpecies(term.species.molecule[0], term.species.label, term.species.reactive)
-    
+
         # The initial mole fractions in the reaction systems still point to the old species
         for reactionSystem in self.reactionSystems:
             initialMoleFractions = {}
@@ -921,12 +926,12 @@ class RMG(util.Subject):
                 spec, isNew = self.reactionModel.makeNewSpecies(spec0.molecule[0], spec0.label, spec0.reactive)
                 initialMoleFractions[spec] = moleFrac
             reactionSystem.initialMoleFractions = initialMoleFractions
-    
+
         # The reactions and reactionDict still point to the old reaction families
         reactionDict = {}
         oldFamilies = self.reactionModel.reactionDict.keys()
         for family0_label in self.reactionModel.reactionDict:
-    
+
             # Find the equivalent library or family in the newly-loaded kinetics database
             family_label = None
             family0_obj = getFamilyLibraryObject(family0_label)
@@ -939,12 +944,12 @@ class RMG(util.Subject):
                 for label, database in self.database.kinetics.families.iteritems():
                     if database.label == family0_label:
                         family_label = database.label
-                        break    
+                        break
             else:
                 import pdb; pdb.set_trace()
             if family_label is None:
                 raise Exception("Unable to find matching reaction family for %s" % family0_label)
-    
+
             # Update each affected reaction to point to that new family
             # Also use that new family in a duplicate reactionDict
             reactionDict[family_label] = {}
@@ -962,15 +967,15 @@ class RMG(util.Subject):
                             assert isinstance(rxn, TemplateReaction)
                             rxn.family_label = family_label
                             reactionDict[family_label][reactant1][reactant2].append(rxn)
-        
+
         self.reactionModel.reactionDict = reactionDict
-    
+
     def loadRestartFile(self, path):
         """
         Load a restart file at `path` on disk.
         """
         import cPickle
-    
+
         # Unpickle the reaction model from the specified restart file
         logging.info('Loading previous restart file...')
         f = open(path, 'rb')
@@ -983,28 +988,28 @@ class RMG(util.Subject):
         if self.filterReactions:
             self.unimolecularThreshold = rmg_restart.unimolecularThreshold
             self.bimolecularThreshold = rmg_restart.bimolecularThreshold
-        
+
     def loadRMGJavaInput(self, path):
         """
         Load an RMG-Java job from the input file located at `inputFile`, or
         from the `inputFile` attribute if not given as a parameter.
         """
-        
+
         # NOTE: This function is currently incomplete!
         # It only loads a subset of the available information.
-    
+
         self.reactionModel = CoreEdgeReactionModel()
         self.initialSpecies = []
         self.reactionSystems = []
-    
+
         Tlist = []; Plist = []; concentrationList = []; speciesDict = {}
         termination = []; atol=1e-16; rtol=1e-8
-        
+
         with open(path, 'r') as f:
             line = self.readMeaningfulLineJava(f)
             while line != '':
-                
-                
+
+
                 if line.startswith('TemperatureModel:'):
                     tokens = line.split()
                     units = tokens[2][1:-1]
@@ -1015,7 +1020,7 @@ class RMG(util.Subject):
                         Tlist = [(float(T)+459.67)*5./9. for T in tokens[3:]]
                     else:
                         Tlist = [float(T) for T in tokens[3:]]
-                
+
                 elif line.startswith('PressureModel:'):
                     tokens = line.split()
                     units = tokens[2][1:-1]
@@ -1028,20 +1033,20 @@ class RMG(util.Subject):
                         Plist = [float(P)/760.*101325. for P in tokens[3:]]
                     else:
                         Plist = [float(P) for P in tokens[3:]]
-                        
+
                 elif line.startswith('InitialStatus:'):
                     label = ''; concentrations = []; adjlist = ''
-                    
+
                     line = self.readMeaningfulLineJava(f)
                     while line != 'END':
-                        
+
                         if line == '' and label != '':
                             species = Species(label=label, molecule=[Molecule().fromAdjacencyList(adjlist)])
                             self.initialSpecies.append(species)
                             speciesDict[label] = species
                             concentrationList.append(concentrations)
                             label = ''; concentrations = []; adjlist = ''
-                        
+
                         elif line != '' and label == '':
                             tokens = line.split()
                             label = tokens[0]
@@ -1055,18 +1060,18 @@ class RMG(util.Subject):
                                 concentrations = [float(C)*1.0e3 for C in tokens[2:]]
                             else:
                                 concentrations = [float(C) for C in tokens[2:]]
-                        
+
                         elif line != '':
                             adjlist += line + '\n'
-                        
+
                         line = f.readline().strip()
                         if '//' in line: line = line[0:line.index('//')]
-                        
+
                 elif line.startswith('InertGas:'):
-                    
+
                     line = self.readMeaningfulLineJava(f)
                     while line != 'END':
-                        
+
                         tokens = line.split()
                         label = tokens[0]
                         assert label in ['N2', 'Ar', 'He', 'Ne']
@@ -1086,16 +1091,16 @@ class RMG(util.Subject):
                             concentrations = [float(C)*1.0e3 for C in tokens[2:]]
                         else:
                             concentrations = [float(C) for C in tokens[2:]]
-                        
+
                         species = Species(label=label, reactive=False, molecule=[Molecule().fromSMILES(smiles)])
                         self.initialSpecies.append(species)
                         speciesDict[label] = species
                         concentrationList.append(concentrations)
-                            
+
                         line = self.readMeaningfulLineJava(f)
-                
+
                 elif line.startswith('FinishController:'):
-                    
+
                     # First meaningful line is a termination time or conversion
                     line = self.readMeaningfulLineJava(f)
                     tokens = line.split()
@@ -1114,26 +1119,26 @@ class RMG(util.Subject):
                         elif units == 'day':
                             time *= 60. * 60. * 24.
                         termination.append(TerminationTime(time=time))
-                            
+
                     # Second meaningful line is the error tolerance
                     # We're not doing anything with this information yet!
                     line = self.readMeaningfulLineJava(f)
-                 
+
                 elif line.startswith('Atol:'):
                     tokens = line.split()
                     atol = float(tokens[1])
-                    
+
                 elif line.startswith('Rtol:'):
                     tokens = line.split()
                     rtol = float(tokens[1])
-                
+
                 line = self.readMeaningfulLineJava(f)
-        
+
         assert len(Tlist) > 0
         assert len(Plist) > 0
         concentrationList = numpy.array(concentrationList)
-        assert concentrationList.shape[1] > 0  # An arbitrary number of concentrations is acceptable, and should be run for each reactor system 
-        
+        assert concentrationList.shape[1] > 0  # An arbitrary number of concentrations is acceptable, and should be run for each reactor system
+
         # Make a reaction system for each (T,P) combination
         for T in Tlist:
             for P in Plist:
@@ -1143,7 +1148,7 @@ class RMG(util.Subject):
                     initialMoleFractions = dict([(self.initialSpecies[i], concentrations[i] / totalConc) for i in range(len(self.initialSpecies))])
                     reactionSystem = SimpleReactor(T, P, initialMoleFractions=initialMoleFractions, termination=termination)
                     self.reactionSystems.append(reactionSystem)
-    
+
     def readMeaningfulLineJava(self, f):
         """
         Read a meaningful line from an RMG-Java condition file object `f`,
@@ -1159,7 +1164,7 @@ class RMG(util.Subject):
                 line = line.strip()
                 if '//' in line: line = line[0:line.index('//')]
         return line
-    
+
 ################################################################################
 
 def initializeLog(verbose, log_file_name):
@@ -1217,7 +1222,7 @@ def initializeLog(verbose, log_file_name):
 
 class Tee:
     """A simple tee to create a stream which prints to many streams.
-    
+
     This is used to report the profiling statistics to both the log file
     and the standard output.
     """
@@ -1226,7 +1231,7 @@ class Tee:
     def write(self, string):
         for fileobject in self.fileobjects:
             fileobject.write(string)
-            
+
 def getCondaPackage(module):
     """
     Check the version of any conda package
@@ -1234,7 +1239,7 @@ def getCondaPackage(module):
     import subprocess
     try:
         lines = subprocess.check_output(['conda', 'list', '-f', module]).splitlines()
-        
+
         packages=[]
         # Strip comments
         for line in lines:
@@ -1242,7 +1247,7 @@ def getCondaPackage(module):
                 pass
             else:
                 packages.append(line)
-                
+
         return '\n'.join(packages)
     except:
         return ''
@@ -1268,11 +1273,11 @@ def processProfileStats(stats_file, log_file):
 def makeProfileGraph(stats_file):
     """
     Uses gprof2dot to create a graphviz dot file of the profiling information.
-    
+
     This requires the gprof2dot package available via `pip install gprof2dot`.
     Render the result using the program 'dot' via a command like
     `dot -Tps2 input.dot -o output.ps2`.
-    
+
     Rendering the ps2 file to pdf requires an external pdf converter
     `ps2pdf output.ps2` which produces a `output.ps2.pdf` file.
     """
@@ -1283,11 +1288,11 @@ def makeProfileGraph(stats_file):
         logging.warning('Try getting the latest version with something like `pip install --upgrade gprof2dot`.')
         return
     import subprocess
-    
+
     #create an Options class to mimic optparser output as much as possible:
     class Options:
         pass
-    
+
     options = Options()
     options.node_thres = 0.8
     options.edge_thres = 0.1
@@ -1296,21 +1301,21 @@ def makeProfileGraph(stats_file):
     options.root = ""
     options.leaf = ""
     options.wrap = True
-    
+
     theme = themes['color'] # bw color gray pink
     theme.fontname = "ArialMT" # default "Arial" leads to PostScript warnings in dot (on Mac OS)
     parser = PstatsParser(stats_file)
     profile = parser.parse()
-    
+
     dot_file = stats_file + '.dot'
     output = open(dot_file,'wt')
     dot = DotWriter(output)
     dot.strip = options.strip
     dot.wrap = options.wrap
-    
+
     if options.show_samples:
         dot.show_function_events.append(SAMPLES)
-    
+
     profile = profile
     profile.prune(options.node_thres/100.0, options.edge_thres/100.0)
 
@@ -1330,7 +1335,7 @@ def makeProfileGraph(stats_file):
     dot.graph(profile, theme)
 
     output.close()
-    
+
     try:
         subprocess.check_call(['dot', '-Tps2', dot_file, '-o', '{0}.ps2'.format(dot_file)])
     except subprocess.CalledProcessError:
@@ -1339,12 +1344,12 @@ def makeProfileGraph(stats_file):
     except OSError:
         logging.error("Couldn't run 'dot' to create graph of profile statistics. Check graphviz is installed properly and on your path.")
         logging.info("Once you've got it, try:\n     dot -Tps2 {0} -o {0}.ps2".format(dot_file))
-    
+
     try:
         subprocess.check_call(['ps2pdf', '{0}.ps2'.format(dot_file), '{0}.pdf'.format(dot_file)])
     except OSError:
         logging.error("Couldn't run 'ps2pdf' to create pdf graph of profile statistics. Check that ps2pdf converter is installed.")
-        logging.info("Once you've got it, try:\n     pd2pdf {0}.ps2 {0}.pdf".format(dot_file))    
+        logging.info("Once you've got it, try:\n     pd2pdf {0}.ps2 {0}.pdf".format(dot_file))
     else:
         logging.info("Graph of profile statistics saved to: \n {0}.pdf".format(dot_file))
 
