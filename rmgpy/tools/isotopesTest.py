@@ -7,6 +7,7 @@ from rmgpy.tools.loader import loadRMGJob
 import rmgpy
 from rmgpy.species import Species
 from rmgpy.tools.isotopes import *
+from external.wip import work_in_progress
 
 from rmgpy.reaction import Reaction
 from rmgpy.data.kinetics.family import TemplateReaction
@@ -247,6 +248,7 @@ class IsotopesTest(unittest.TestCase):
 
         self.assertTrue(storedLabeledRxn.isIsomorphic(labeledRxn))
 
+    @work_in_progress
     def testEnsureReactionDirection(self):
         """
         Tests that the direction of the reaction is constant for every isotopomer
