@@ -148,7 +148,7 @@ class MoleculeDrawer:
             try:
                 import cairo
             except ImportError:
-                print 'Cairo not found; molecule will not be drawn.'
+                logging.error('Cairo not found; molecule will not be drawn.')
                 return
         
         # Make a copy of the molecule so we don't modify the original
@@ -183,7 +183,12 @@ class MoleculeDrawer:
         else:
             # Generate the coordinates to use to draw the molecule
             try:
+                # before getting coordinates, make all bonds single and then
+                # replace the bonds after generating coordinates. This avoids
+                # bugs with RDKit
+                old_bond_dictionary = self.__make_single_bonds()
                 self.__generateCoordinates()
+                self.__replace_bonds(old_bond_dictionary)
                 
                 # Generate labels to use
                 self.__generateAtomLabels()
@@ -194,6 +199,12 @@ class MoleculeDrawer:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_exc()
                 return None, None, None
+            except KeyError:
+                logging.error('KeyError occured when drawing molecule, likely because' +\
+                            ' the molecule contained non-standard bond orders in the' +\
+                            ' getResonanceHybrid method. These cannot be drawn since' +\
+                            ' they cannot be sent to RDKit for coordinate placing.')
+                raise
 
         self.coordinates[:,1] *= -1
         self.coordinates *= self.options['bondLength']
@@ -964,7 +975,7 @@ class MoleculeDrawer:
         padding = self.options['padding']
         self.left -= padding; self.top -= padding; self.right += padding; self.bottom += padding
     
-    def __drawLine(self, cr, x1, y1, x2, y2):
+    def __drawLine(self, cr, x1, y1, x2, y2, dashed = False):
         """
         Draw a line on the given Cairo context `cr` from (`x1`, `y1`) to
         (`x2`,`y2`), and update the bounding rectangle if necessary.
@@ -976,9 +987,14 @@ class MoleculeDrawer:
         cairo
         cr.set_source_rgba(0.0, 0.0, 0.0, 1.0)
         cr.set_line_width(1.0)
+        if dashed:
+            cr.set_dash([3.5])
         cr.set_line_cap(cairo.LINE_CAP_ROUND)
         cr.move_to(x1, y1); cr.line_to(x2, y2)
         cr.stroke()
+        # remove dashes for next method call
+        if dashed:
+            cr.set_dash([])
         if x1 < self.left: self.left = x1
         if x1 > self.right: self.right = x1
         if y1 < self.top: self.top = y1
@@ -998,7 +1014,6 @@ class MoleculeDrawer:
             import cairocffi as cairo
         except ImportError:
             import cairo
-    
         bondLength = self.options['bondLength']
     
         x1, y1 = self.coordinates[atom1,:]
@@ -1019,6 +1034,16 @@ class MoleculeDrawer:
             self.__drawLine(cr, x1 - du, y1 - dv, x2 - du, y2 - dv)
             self.__drawLine(cr, x1     , y1     , x2     , y2     )
             self.__drawLine(cr, x1 + du, y1 + dv, x2 + du, y2 + dv)
+        elif bond.getOrderNum() > 1 and bond.getOrderNum() < 2 and (self.symbols[atom1] != '' or self.symbols[atom2] != ''):
+            # Draw dashed double bond centered on bond axis
+            du *= 1.6; dv *= 1.6
+            self.__drawLine(cr, x1 - du, y1 - dv, x2 - du, y2 - dv)
+            self.__drawLine(cr, x1 + du, y1 + dv, x2 + du, y2 + dv, dashed=True)
+        elif bond.getOrderNum() > 2 and bond.getOrderNum() < 3 and (self.symbols[atom1] != '' or self.symbols[atom2] != ''):
+            du *= 3; dv *= 3
+            self.__drawLine(cr, x1 - du, y1 - dv, x2 - du, y2 - dv)
+            self.__drawLine(cr, x1     , y1     , x2     , y2     )
+            self.__drawLine(cr, x1 + du, y1 + dv, x2 + du, y2 + dv, dashed = True)
         else:
             # Draw bond on skeleton
             self.__drawLine(cr, x1, y1, x2, y2)
@@ -1030,6 +1055,13 @@ class MoleculeDrawer:
                 du *= 3; dv *= 3; dx = 2 * dx / bondLength; dy = 2 * dy / bondLength
                 self.__drawLine(cr, x1 - du + dx, y1 - dv + dy, x2 - du - dx, y2 - dv - dy)
                 self.__drawLine(cr, x1 + du + dx, y1 + dv + dy, x2 + du - dx, y2 + dv - dy)
+            elif bond.getOrderNum() > 1 and bond.getOrderNum() < 2:
+                du *= 3.2; dv *= 3.2; dx = 2 * dx / bondLength; dy = 2 * dy / bondLength
+                self.__drawLine(cr, x1 + du + dx, y1 + dv + dy, x2 + du - dx, y2 + dv - dy, dashed=True)
+            elif bond.getOrderNum() > 2 and bond.getOrderNum() < 3:
+                du *= 3; dv *= 3; dx = 2 * dx / bondLength; dy = 2 * dy / bondLength
+                self.__drawLine(cr, x1 - du + dx, y1 - dv + dy, x2 - du - dx, y2 - dv - dy)
+                self.__drawLine(cr, x1 + du + dx, y1 + dv + dy, x2 + du - dx, y2 + dv - dy, dashed=True)
         
     def __renderAtom(self, symbol, atom, x0, y0, cr, heavyFirst=True, drawLonePairs=False):
         """
@@ -1359,6 +1391,25 @@ class MoleculeDrawer:
         if boundingRect[3] > self.bottom:
             self.bottom = boundingRect[3]
 
+    def __make_single_bonds(self):
+        """This method converts all bonds to single bonds and then returns
+        a dictionary of Bond object keys with the old bond order as a value"""
+        dictionary = {}
+        for atom1 in self.molecule.atoms:
+            for atom2, bond in atom1.bonds.items():
+                if not bond.isSingle():
+                    dictionary[bond] = bond.getOrderNum()
+                    bond.setOrderNum(1)
+        return dictionary
+
+    def __replace_bonds(self,bond_order_dictionary):
+        """
+        Sets the bond order in self.molecule equal to the orders in bond_order_dictionary
+        which is obtained from __make_single_bonds().
+        """
+        for bond, order in bond_order_dictionary.items():
+            bond.setOrderNum(order)
+
 ################################################################################
 
 class ReactionDrawer:
@@ -1399,7 +1450,7 @@ class ReactionDrawer:
             try:
                 import cairo
             except ImportError:
-                print 'Cairo not found; molecule will not be drawn.'
+                logging.error('Cairo not found; molecule will not be drawn.')
                 return
 
         from .molecule import Molecule
