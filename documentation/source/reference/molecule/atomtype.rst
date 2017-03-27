@@ -55,7 +55,7 @@ Atom type       Description
 *Sulfur atom types*
 ----------------------------------------------------------------------------
 ``S``           sulfur atom with any local bond structure
-``Ss``          sulfur atom with two single bonds
-``Sd``          sulfur atom with one double bond
+``S2s``         sulfur atom with two single bonds
+``S2d``         sulfur atom with one double bond
 ``Sa``          sulfur atom with no bonds
 =============== ============================================================
