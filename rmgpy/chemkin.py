@@ -1786,7 +1786,7 @@ def saveChemkinFile(path, species, reactions, verbose = True, checkForDuplicates
     if checkForDuplicates:
         markDuplicateReactions(reactions)
     
-    f = open(path, 'w')
+    f  = open(path, 'w')
     
     sorted_species = sorted(species, key=lambda species: species.index)
 
@@ -1830,6 +1830,31 @@ def saveChemkinFile(path, species, reactions, verbose = True, checkForDuplicates
     f.close()
     logging.info("Chemkin file contains {0} reactions.".format(__chemkin_reaction_count))
     __chemkin_reaction_count = None
+    
+def saveSmilesFile(path, species):
+    """
+    Save a text file containing only the SMILES strings of the given species.
+    """
+    
+    f  = open(path, 'w')
+    sorted_species = sorted(species, key=lambda species: species.index)
+    for spec in sorted_species:
+        f.write('{0} \n'.format(str(spec.molecule[0].toSMILES())))
+    f.close()
+    
+def saveInChiFile(path, species):
+    """
+    Save a text file containing only the SMILES strings of the given species.
+    """
+    
+    f  = open(path, 'w')
+    sorted_species = sorted(species, key=lambda species: species.index)
+    for spec in sorted_species:
+        if spec.molecule == []:
+            f.write('{0} \n'.format(str(spec.getAugmentedInChI())))
+        else:
+            f.write('{0} \n'.format(str(spec.molecule[0].toInChI())))
+    f.close()    
 
 def saveJavaKineticsLibrary(path, species, reactions):
     """
@@ -1871,7 +1896,7 @@ def saveJavaKineticsLibrary(path, species, reactions):
     
     saveSpeciesDictionary(os.path.join(path, 'species.txt'), species, oldStyle=True)
 
-def saveChemkin(reactionModel, path, verbose_path, dictionaryPath=None, transportPath=None, saveEdgeSpecies=False):
+def saveChemkin(reactionModel, path, verbose_path, dictionaryPath=None, transportPath=None, smilesPath=None, inChiPath=None, saveEdgeSpecies=False):
     """
     Save a Chemkin file for the current model as well as any desired output
     species and reactions to `path`. If `saveEdgeSpecies` is True, then 
@@ -1889,7 +1914,10 @@ def saveChemkin(reactionModel, path, verbose_path, dictionaryPath=None, transpor
             saveSpeciesDictionary(dictionaryPath, speciesList)
         if transportPath:
             saveTransportFile(transportPath, speciesList)
-        
+        if smilesPath:
+            saveSmilesFile(smilesPath, speciesList)
+        if inChiPath:
+            saveInChiFile(inChiPath, speciesList)        
     else:
         speciesList = reactionModel.core.species + reactionModel.edge.species
         rxnList = reactionModel.core.reactions + reactionModel.edge.reactions
@@ -1900,6 +1928,10 @@ def saveChemkin(reactionModel, path, verbose_path, dictionaryPath=None, transpor
             saveSpeciesDictionary(dictionaryPath, speciesList)
         if transportPath:
             saveTransportFile(transportPath, speciesList)
+        if smilesPath:
+            saveSmilesFile(smilesPath, speciesList)
+        if inChiPath:
+            saveInChiFile(inChiPath, speciesList)     
 
 def saveChemkinFiles(rmg):
     """
@@ -1911,7 +1943,9 @@ def saveChemkinFiles(rmg):
     latest_chemkin_verbose_path = os.path.join(rmg.outputDirectory, 'chemkin', 'chem_annotated.inp')
     latest_dictionary_path = os.path.join(rmg.outputDirectory, 'chemkin','species_dictionary.txt')
     latest_transport_path = os.path.join(rmg.outputDirectory, 'chemkin', 'tran.dat')
-    saveChemkin(rmg.reactionModel, this_chemkin_path, latest_chemkin_verbose_path, latest_dictionary_path, latest_transport_path, False)
+    latest_smiles_path =  os.path.join(rmg.outputDirectory, 'smiles.txt')
+    latest_inchi_path =  os.path.join(rmg.outputDirectory, 'inchi.txt')
+    saveChemkin(rmg.reactionModel, this_chemkin_path, latest_chemkin_verbose_path, latest_dictionary_path, latest_transport_path, latest_smiles_path, latest_inchi_path, False)
     if os.path.exists(latest_chemkin_path):
         os.unlink(latest_chemkin_path)
     shutil.copy2(this_chemkin_path,latest_chemkin_path)
@@ -1923,7 +1957,9 @@ def saveChemkinFiles(rmg):
         latest_chemkin_verbose_path = os.path.join(rmg.outputDirectory, 'chemkin', 'chem_edge_annotated.inp')
         latest_dictionary_path = os.path.join(rmg.outputDirectory, 'chemkin','species_edge_dictionary.txt')
         latest_transport_path = None
-        saveChemkin(rmg.reactionModel, this_chemkin_path, latest_chemkin_verbose_path, latest_dictionary_path, latest_transport_path, rmg.saveEdgeSpecies)
+        latest_smiles_path =  os.path.join(rmg.outputDirectory, 'edge_smiles.txt')
+        latest_inchi_path =  os.path.join(rmg.outputDirectory, 'edge_inchi.txt')
+        saveChemkin(rmg.reactionModel, this_chemkin_path, latest_chemkin_verbose_path, latest_dictionary_path, latest_transport_path, latest_smiles_path, latest_inchi_path, rmg.saveEdgeSpecies)
         if os.path.exists(latest_chemkin_path):
             os.unlink(latest_chemkin_path)
         shutil.copy2(this_chemkin_path,latest_chemkin_path)
